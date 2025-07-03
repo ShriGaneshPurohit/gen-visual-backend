@@ -4,9 +4,9 @@ poster_generator.js
 AI-powered poster generation logic for research event posters (university events) using the Gemini API.
 
 - Input: posterType, eventDetails, speakerImages (File[]), universityLogo (File)
-- Output: { posterImage: string (PNG URL), error: string|null }
-- Uses HTML5 canvas for image processing (circular crop for speakers, resize/crop for logo)
-- Integrates with Gemini free-tier API (replace endpoint and API key as needed)
+- Output: { posterImage: string (PNG data URL), error: string|null }
+- Uses HTML5 canvas for image processing (circular crop for speakers, proportional scaling for logo)
+- Integrates with Gemini 2.0 free-tier API (endpoint and API key from .env)
 - Extensible for future poster types
 
 ---
@@ -23,23 +23,24 @@ const input = {
     time: '10:00 AM',
     venue: 'Main Hall',
     department: 'Computer Science',
+    speakers: ['Dr. Alice Smith', 'Prof. Bob Lee'] // Optional: array of speaker names
   },
   speakerImages: [File, File], // 1–3 File objects (PNG/JPEG)
   universityLogo: File // PNG/JPEG File object
 };
 
-const apiKey = 'YOUR_GEMINI_API_KEY'; // Replace with your Gemini API key
-
-const result = await generateResearchPoster(input, apiKey);
-// result: { posterImage: 'https://...', error: null } or { posterImage: null, error: '...' }
+const result = await generateResearchPoster(input);
+// result: { posterImage: 'data:image/png;base64,...', error: null } or { posterImage: null, error: '...' }
 
 ---
 
 Note:
-- Replace the Gemini API endpoint and API key with actual values from the Gemini free-tier API documentation.
+- Uses Gemini 2.0 endpoint: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent
+- API key is read from process.env.GEMINI_API_KEY (see .env file); fallback is 'YOUR_GEMINI_API_KEY' (replace or ensure .env is loaded).
+- API key is sent as a query parameter (?key=...).
+- Ensure .env is loaded in your environment (e.g., using dotenv for Node.js testing).
 - This module does not include UI code.
 - Only browser-compatible JS and canvas API are used.
-*/
 
 /**
  * Validate input for research poster generation.
@@ -57,6 +58,9 @@ function validateInput(input) {
       return `Missing or invalid eventDetails field: ${field}`;
     }
   }
+  if (eventDetails.speakers && !Array.isArray(eventDetails.speakers)) {
+    return 'eventDetails.speakers must be an array of strings if provided.';
+  }
   if (!Array.isArray(speakerImages) || speakerImages.length < 1 || speakerImages.length > 3) {
     return 'speakerImages must be an array of 1–3 image files.';
   }
@@ -65,7 +69,7 @@ function validateInput(input) {
     if (!/^image\/(png|jpeg|jpg)$/i.test(file.type)) return 'Speaker images must be PNG or JPEG files.';
   }
   if (!(universityLogo instanceof File)) return 'universityLogo must be a File object.';
-  if (!/^image\/(png|jpeg|jpg)$/i.test(universityLogo.type)) return 'universityLogo must be a PNG or JPEG file.';
+  if (!/^image\/(png|jpeg|jpg)$/i.test(universityLogo.type)) return 'University logo must be a PNG or JPEG file.';
   return null;
 }
 
@@ -108,7 +112,7 @@ function cropImageToCircle(file) {
 }
 
 /**
- * Resize/crop the university logo to 100x50px using canvas.
+ * Proportionally scale the university logo to fit within 100x50px (no cropping).
  * @param {File} file
  * @returns {Promise<string>} Resolves to base64 PNG data URL
  */
@@ -116,31 +120,22 @@ function processLogoImage(file) {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
     img.onload = () => {
-      const width = 100;
-      const height = 50;
+      const maxWidth = 100;
+      const maxHeight = 50;
+      let width = img.width;
+      let height = img.height;
+      // Scale proportionally
+      const widthRatio = maxWidth / width;
+      const heightRatio = maxHeight / height;
+      const scale = Math.min(widthRatio, heightRatio, 1); // Don't upscale
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, width, height);
-      // Center-crop or fit the logo
-      const aspectRatio = img.width / img.height;
-      const targetAspect = width / height;
-      let sx, sy, sw, sh;
-      if (aspectRatio > targetAspect) {
-        // Image is wider than target: crop sides
-        sh = img.height;
-        sw = sh * targetAspect;
-        sx = (img.width - sw) / 2;
-        sy = 0;
-      } else {
-        // Image is taller than target: crop top/bottom
-        sw = img.width;
-        sh = sw / targetAspect;
-        sx = 0;
-        sy = (img.height - sh) / 2;
-      }
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
       resolve(canvas.toDataURL('image/png'));
     };
     img.onerror = () => reject('Failed to load university logo image.');
@@ -155,21 +150,27 @@ function processLogoImage(file) {
 
 /**
  * Generate a text prompt for the Gemini API based on event details.
+ * Adds a 'Speakers' bullet if eventDetails.speakers is provided.
  * @param {Object} eventDetails
  * @param {number} numSpeakers
  * @returns {string}
  */
 function buildGeminiPrompt(eventDetails, numSpeakers) {
-  return `Create a high-resolution A4 poster (300 DPI, PNG) for a university research event.\n- Place the university logo (100x50px) in the top-right corner.\n- Center ${numSpeakers} circular speaker images (150x150px each) in a horizontal row.\n- Below the images, display event details in Arial font with a blue-and-white color scheme:\n  • Title: ${eventDetails.title}\n  • Date: ${eventDetails.date}\n  • Time: ${eventDetails.time}\n  • Venue: ${eventDetails.venue}\n  • Department: ${eventDetails.department}\n- Ensure a clean, professional layout similar to university event posters.`;
+  let prompt = `Create a high-resolution A4 poster (300 DPI, PNG) for a university research event.\n- Place the university logo (max 100x50px) in the top-right corner.\n- Center ${numSpeakers} circular speaker images (150x150px each) in a horizontal row.\n- Below the images, display event details in Arial font with a blue-and-white color scheme:\n  • Title: ${eventDetails.title}\n  • Date: ${eventDetails.date}\n  • Time: ${eventDetails.time}\n  • Venue: ${eventDetails.venue}\n  • Department: ${eventDetails.department}`;
+  if (eventDetails.speakers && Array.isArray(eventDetails.speakers) && eventDetails.speakers.length > 0) {
+    prompt += `\n  • Speakers: ${eventDetails.speakers.join(', ')}`;
+  }
+  prompt += '\n- Ensure a clean, professional layout similar to university event posters.';
+  return prompt;
 }
 
 /**
  * Main function to generate a research event poster using Gemini API.
+ * Includes robust error handling and image data validation.
  * @param {Object} input - { posterType, eventDetails, speakerImages, universityLogo }
- * @param {string} apiKey - Gemini API key
  * @returns {Promise<{posterImage: string|null, error: string|null}>}
  */
-export async function generateResearchPoster(input, apiKey) {
+export async function generateResearchPoster(input) {
   // 1. Validate input
   const error = validateInput(input);
   if (error) return { posterImage: null, error };
@@ -184,7 +185,7 @@ export async function generateResearchPoster(input, apiKey) {
     return { posterImage: null, error: typeof e === 'string' ? e : 'Speaker image processing failed.' };
   }
 
-  // 3. Process university logo (resize/crop to 100x50px)
+  // 3. Process university logo (proportional scale to max 100x50px)
   let processedLogo;
   try {
     processedLogo = await processLogoImage(input.universityLogo);
@@ -192,48 +193,60 @@ export async function generateResearchPoster(input, apiKey) {
     return { posterImage: null, error: typeof e === 'string' ? e : 'University logo processing failed.' };
   }
 
-  // 4. Build Gemini API prompt
+  // 4. Validate base64 image data before sending to Gemini API
+  const getBase64 = (dataUrl) => {
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/png;base64,')) {
+      throw new Error('Invalid image data URL.');
+    }
+    const base64 = dataUrl.split(',')[1];
+    if (!base64 || base64.length < 10) throw new Error('Invalid base64 image data.');
+    return base64;
+  };
+
+  let logoBase64, speakerBase64Arr;
+  try {
+    logoBase64 = getBase64(processedLogo);
+    speakerBase64Arr = processedSpeakerImages.map(getBase64);
+  } catch (e) {
+    return { posterImage: null, error: 'Image data validation failed: ' + (e.message || e) };
+  }
+
+  // 5. Build Gemini API prompt
   const prompt = buildGeminiPrompt(input.eventDetails, processedSpeakerImages.length);
 
-  // 5. Prepare Gemini API request
-  // NOTE: Replace endpoint and API key with actual values from Gemini free-tier API documentation.
-  const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'; // Placeholder
+  // 6. Prepare Gemini API request (Gemini 2.0, API key as query param)
+  const apiKey = (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) ? process.env.GEMINI_API_KEY : 'YOUR_GEMINI_API_KEY';
+  const GEMINI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-  // Prepare images: logo + speaker images (as base64 data URLs)
-  const images = [
-    { name: 'logo', dataUrl: processedLogo },
-    ...processedSpeakerImages.map((dataUrl, i) => ({ name: `speaker${i + 1}`, dataUrl })),
+  // Prepare 'contents' array: prompt as text part, images as inlineData parts
+  const contents = [
+    {
+      parts: [
+        { text: prompt },
+        { inlineData: { mimeType: 'image/png', data: logoBase64 } },
+        ...speakerBase64Arr.map(base64 => ({ inlineData: { mimeType: 'image/png', data: base64 } })),
+      ]
+    }
   ];
 
-  // If Gemini API supports image inputs, send as JSON with prompt and images[]
-  // Otherwise, include image URLs/data in the prompt as needed
+  // Gemini 2.0: generationConfig
+  const generationConfig = {
+    temperature: 0.7,
+    maxOutputTokens: 2048,
+    responseMimeType: 'image/png'
+  };
 
   let response;
   try {
     response = await fetch(GEMINI_API_ENDPOINT, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        prompt,
-        images, // [{ name, dataUrl }]
-        outputFormat: 'png',
-        resolution: 'a4-300dpi',
-      }),
+      body: JSON.stringify({ contents, generationConfig }),
     });
   } catch (err) {
     return { posterImage: null, error: 'Failed to connect to Gemini API.' };
-  }
-
-  if (!response.ok) {
-    let msg = `Gemini API error: ${response.status}`;
-    try {
-      const errData = await response.json();
-      if (errData && errData.error) msg += ` - ${errData.error}`;
-    } catch {}
-    return { posterImage: null, error: msg };
   }
 
   let data;
@@ -243,11 +256,23 @@ export async function generateResearchPoster(input, apiKey) {
     return { posterImage: null, error: 'Invalid response from Gemini API.' };
   }
 
-  if (!data || !data.posterImageUrl) {
-    return { posterImage: null, error: 'Gemini API did not return a poster image URL.' };
+  // Defensive response parsing with detailed error messages
+  if (!response.ok) {
+    let msg = `Gemini API error: ${response.status}`;
+    if (data && data.error && data.error.message) msg += ` - ${data.error.message}`;
+    return { posterImage: null, error: msg };
   }
 
-  return { posterImage: data.posterImageUrl, error: null };
+  try {
+    const base64Data = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64Data || typeof base64Data !== 'string' || base64Data.length < 10) {
+      return { posterImage: null, error: 'Gemini API did not return a valid poster image.' };
+    }
+    const dataUrl = `data:image/png;base64,${base64Data}`;
+    return { posterImage: dataUrl, error: null };
+  } catch (e) {
+    return { posterImage: null, error: 'Failed to parse Gemini API response: ' + (e.message || e) };
+  }
 }
 
 // --- End of poster_generator.js --- 
