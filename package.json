@@ -1,0 +1,19 @@
+{
+  "name": "gen-visual-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "poster_generator.mjs",
+  "scripts": {
+    "test": "node test_poster_generator.mjs",
+    "start": "node test_poster_generator.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Backend for generating research event posters using Gemini API and canvas",
+  "dependencies": {
+    "canvas": "^2.11.2",
+    "dotenv": "^17.0.1",
+    "readline": "^1.3.0"
+  }
+}

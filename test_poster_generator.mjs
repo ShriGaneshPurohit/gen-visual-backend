@@ -4,8 +4,8 @@
 // Usage:
 //   1. Install dependencies: npm install
 //   2. Place your .env file in gen-visual-backend with GEMINI_API_KEY=your_actual_api_key_here
-//   3. Update the image file paths below to point to real PNG/JPEG files under 5MB
-//   4. Run: npm test or node test_poster_generator.mjs
+//   3. Provide image file paths when prompted (PNG/JPEG under 5MB)
+//   4. Run: npm test or npm start
 //
 // This script tests poster generation and saves the result as output_poster.png
 //
@@ -14,7 +14,9 @@
 import 'dotenv/config';
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { generateResearchPoster } from './poster_generator.mjs';
+import readline from 'readline';
 
 // Polyfill File for Node.js (if not available)
 if (typeof global.File === 'undefined') {
@@ -49,49 +51,70 @@ function getMime(filePath) {
   return extMap[ext] || 'application/octet-stream';
 }
 
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+const ask = (question) => new Promise(resolve => rl.question(question, resolve));
+
 (async () => {
   try {
     // Validate API key from .env
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       console.error('Error: GEMINI_API_KEY not found in .env. Please configure a valid key.');
+      rl.close();
       process.exit(1);
     }
 
-    // === SETUP: Update these paths to your actual image files ===
-    const speaker1Path = 'images/speaker1.jpg'; // <-- Replace with real path under 5MB
-    const speaker2Path = 'images/speaker2.jpg'; // <-- Replace with real path under 5MB
-    const logoPath = 'images/logo.jpg';         // <-- Replace with real path under 5MB
+    // Collect user input
+    const posterType = (await ask('Enter poster type (research/club): ')).trim().toLowerCase();
+    if (!['research', 'club'].includes(posterType)) throw new Error('Invalid poster type.');
+    const title = (await ask('Enter event title: ')).trim();
+    if (!title) throw new Error('Title is required.');
+    const date = (await ask('Enter date (e.g., 2025-07-15): ')).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Invalid date format (YYYY-MM-DD).');
+    const time = (await ask('Enter time (e.g., 10:00 AM): ')).trim();
+    if (!/\d{1,2}:\d{2}\s?(AM|PM)/i.test(time)) throw new Error('Invalid time format.');
+    const venue = (await ask('Enter venue: ')).trim();
+    if (!venue) throw new Error('Venue is required.');
+    const department = (await ask('Enter department: ')).trim();
+    if (!department) throw new Error('Department is required.');
+    const numSpeakers = parseInt((await ask('Enter number of speakers (1-3): ')).trim(), 10);
+    if (isNaN(numSpeakers) || numSpeakers < 1 || numSpeakers > 3) throw new Error('Number of speakers must be 1-3.');
+    const speakers = [];
+    for (let i = 0; i < numSpeakers; i++) {
+      const name = (await ask(`Enter speaker ${i + 1} name: `)).trim();
+      if (!name) throw new Error(`Speaker ${i + 1} name is required.`);
+      speakers.push(name);
+    }
 
-    // === PREPARE INPUT ===
-    const speakerImages = [
-      await fileFromPath(speaker1Path, getMime(speaker1Path)),
-      await fileFromPath(speaker2Path, getMime(speaker2Path)),
-    ];
+    // Collect image paths
+    const speakerImages = [];
+    const speakerImagePaths = [];
+    for (let i = 0; i < numSpeakers; i++) {
+      const filePath = (await ask(`Enter path to speaker ${i + 1} image (e.g., images/speaker${i + 1}.jpg): `)).trim();
+      speakerImagePaths.push(filePath);
+      speakerImages.push(await fileFromPath(filePath, getMime(filePath)));
+    }
+    const logoPath = (await ask('Enter path to university logo (e.g., images/logo.jpg): ')).trim();
     const universityLogo = await fileFromPath(logoPath, getMime(logoPath));
 
     const input = {
-      posterType: 'research',
-      eventDetails: {
-        title: 'AI Symposium',
-        date: '2025-07-15',
-        time: '10:00 AM',
-        venue: 'Main Hall',
-        department: 'Computer Science',
-        speakers: ['Dr. Alice Smith', 'Prof. Bob Lee'],
-      },
+      posterType,
+      eventDetails: { title, date, time, venue, department, speakers },
       speakerImages,
+      speakerImagePaths, // New array for full paths
       universityLogo,
+      universityLogoPath: logoPath, // New property for logo path
     };
 
-    // === RUN TEST ===
+    // Run test
     console.log('Generating research poster...');
     const result = await generateResearchPoster(input);
     if (result.error) {
       console.error('Poster generation failed:', result.error);
-      if (result.geminiRawResponse) {
-        console.log('Gemini raw response:', result.geminiRawResponse);
-      }
     } else {
       const base64 = result.posterImage.split(',')[1];
       if (!base64 || base64.length < 100) throw new Error('Invalid poster data');
@@ -100,6 +123,8 @@ function getMime(filePath) {
     }
   } catch (err) {
     console.error('Unexpected error during test:', err.message);
+  } finally {
+    rl.close();
   }
 })();
 
