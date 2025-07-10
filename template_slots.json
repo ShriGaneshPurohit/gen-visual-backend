@@ -1,0 +1,110 @@
+{
+  "4755fb11e2859366eb2ee4ef6c10ac89": [
+    {
+      "x": 934,
+      "y": 1138,
+      "width": 518,
+      "height": 518,
+      "center_x": 1193,
+      "center_y": 1397,
+      "radius": 259,
+      "shape": "circle"
+    }
+  ],
+  "2ffc67368c10f4f85513a8d56ea0b794": [
+    {
+      "x": 935,
+      "y": 1252,
+      "width": 560,
+      "height": 560,
+      "center_x": 1215,
+      "center_y": 1532,
+      "radius": 280,
+      "shape": "circle"
+    },
+    {
+      "x": 165,
+      "y": 1252,
+      "width": 560,
+      "height": 560,
+      "center_x": 445,
+      "center_y": 1532,
+      "radius": 280,
+      "shape": "circle"
+    }
+  ],
+  "878193ac09378663b9681963288ee43f": [
+    {
+      "x": 991,
+      "y": 658,
+      "width": 330,
+      "height": 330,
+      "center_x": 1156,
+      "center_y": 823,
+      "radius": 165,
+      "shape": "circle"
+    },
+    {
+      "x": 554,
+      "y": 658,
+      "width": 330,
+      "height": 330,
+      "center_x": 719,
+      "center_y": 823,
+      "radius": 165,
+      "shape": "circle"
+    },
+    {
+      "x": 116,
+      "y": 658,
+      "width": 330,
+      "height": 330,
+      "center_x": 281,
+      "center_y": 823,
+      "radius": 165,
+      "shape": "circle"
+    }
+  ],
+  "72fbcbce9222ab28bab2aca85c652c0e": [
+    {
+      "x": 864,
+      "y": 1271,
+      "width": 434,
+      "height": 434,
+      "center_x": 1081,
+      "center_y": 1488,
+      "radius": 217,
+      "shape": "circle"
+    },
+    {
+      "x": 287,
+      "y": 1271,
+      "width": 434,
+      "height": 434,
+      "center_x": 504,
+      "center_y": 1488,
+      "radius": 217,
+      "shape": "circle"
+    },
+    {
+      "x": 864,
+      "y": 603,
+      "width": 434,
+      "height": 434,
+      "center_x": 1081,
+      "center_y": 820,
+      "radius": 217,
+      "shape": "circle"
+    },
+    {
+      "x": 287,
+      "y": 603,
+      "width": 434,
+      "height": 434,
+      "center_x": 504,
+      "center_y": 820,
+      "radius": 217,
+      "shape": "circle"
+    }
+  ]
+}
