@@ -1,0 +1,26 @@
+{
+    "0d21fd00c966e270ac3376d8e0728696": [
+        {
+            "x": 546,
+            "y": 951,
+            "width": 331,
+            "height": 331,
+            "center_x": 712,
+            "center_y": 1117,
+            "radius": 165,
+            "shape": "circle"
+        }
+    ],
+    "5621bd8a9457f6477611457598a9943f": [
+        {
+            "x": 546,
+            "y": 951,
+            "width": 331,
+            "height": 331,
+            "center_x": 712,
+            "center_y": 1117,
+            "radius": 165,
+            "shape": "circle"
+        }
+    ]
+}
