@@ -1,0 +1,8 @@
+opencv-python
+easyocr
+numpy
+pillow
+thefuzz
+mediapipe
+fastapi
+uvicorn
