@@ -64,8 +64,10 @@ FastAPI will parse it back into Python dict.
 4️⃣ Multiple Inputs (Lists like logo_paths, face_image_paths)
 
 Since forms don’t support arrays directly, we pass them as comma-separated strings.
+
 The API code then splits them internally.
 
 Example:
 face_image_paths: assets/p1.jpeg
+
 ["logos/goal4.png", "logos/goal9.png"]
