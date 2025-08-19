@@ -2,7 +2,7 @@
 1. Run the API server
 uvicorn main:app --reload
 
-2. Test with Postman or browser
+2. Test with browser
 
 Go to:
 
