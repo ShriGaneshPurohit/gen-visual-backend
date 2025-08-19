@@ -1,73 +1,68 @@
-▶️ Running the Project
-1. Run the API server
+
+# gen-visual-backend
+
+This project is a backend service for generating event posters using AI and LLM-powered prompt parsing.
+
+## Features
+- Accepts natural language prompts and converts them to structured JSON using Gemini LLM.
+- Generates event posters with custom text, fonts, logos, and face images.
+- FastAPI backend for easy integration with any frontend.
+
+## Setup Instructions
+
+### 1. Clone the Repository
+```
+git clone <your-repo-url>
+cd gen-visual-backend
+```
+
+### 2. Create and Activate a Virtual Environment (Recommended)
+```
+python -m venv venv
+# On Windows:
+venv\Scripts\activate
+# On Mac/Linux:
+source venv/bin/activate
+```
+
+### 3. Install Dependencies
+```
+pip install -r requirements.txt
+```
+
+### 4. Set Up Gemini API Key
+Create a `.env` file in the project root with your Gemini API key:
+```
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+### 5. Run the Backend Server
+```
 uvicorn main:app --reload
+```
 
-2. Test with browser
+### 6. Test the Middleware and Poster Generation
+Edit `test.py` to change the prompt or font as needed, then run:
+```
+python test.py
+```
+The generated poster will be saved in the `outputs/` directory.
 
-Go to:
+## Project Structure
+- `main.py` - FastAPI backend
+- `middleware/` - LLM-powered prompt parser
+- `script1.py`, `script2.py` - Poster and slot generation logic
+- `assets/`, `fonts/`, `logos/`, `icons/` - Required images and fonts
+- `outputs/` - Generated posters
 
-http://127.0.0.1:8000/docs
-Click "Try it out" → enter data → Execute.
+## Notes
+- Make sure all required asset files (images, fonts) are present in their respective folders.
+- The middleware uses Gemini LLM for robust prompt parsing. If the API is unavailable, it falls back to default values.
 
-2️⃣ Single-Value Fields
+## API Usage
+- You can use the interactive docs at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) to test the API.
+- For JSON fields (like `poster_text_content` and `custom_font_sizes`), paste the JSON as a string in the form.
+- For list fields (like `logo_paths`), use comma-separated values.
 
-For fields that take a single value, just enter a string path or JSON.
-
-Example:
-
-base_template_path → assets/template.png
-
-mapping_file_path → assets/mapping.json
-
-font_file_path → fonts/Roboto-Regular.ttf
-
-venue_icon_file_path → icons/venue.png
-
-calendar_icon_file_path → icons/calendar.png
-
-3️⃣ JSON Inputs (poster text & font sizes)
-
-Some fields expect JSON strings (because Swagger form inputs are text).
-
-Example for poster_text_content:
-
-{
-  "campus_name": "Bangalore Central Campus",
-  "department_name": "Department of Computer Science",
-  "type_of_event": "Annual Tech Fest\nCode Genesis 2025",
-  "about_event": "A hands-on workshop exploring AI.",
-  "speaker 1": "Dr. Evelyn Reed",
-  "designation 1": "Chief AI Scientist, Futura Corp",
-  "date": "August 22, 2025",
-  "time": "9:00 AM - 12:00 PM",
-  "venue": "Central Block, 10th Floor",
-  "footer": "School of Sciences\nDesigned by AI"
-}
-
-
-For custom_font_sizes:
-
-{
-  "type_of_event": 55,
-  "campus_name": 45,
-  "department_name": 50,
-  "about_event": 35,
-  "venue": 25,
-  "date": 25,
-  "time": 25
-}
-
-
-Paste the whole JSON as text in the form field.
-FastAPI will parse it back into Python dict.
-
-4️⃣ Multiple Inputs (Lists like logo_paths, face_image_paths)
-
-Since forms don’t support arrays directly, we pass them as comma-separated strings.
-
-The API code then splits them internally.
-
-Example:
-face_image_paths: assets/p1.jpeg
-
-["logos/goal4.png", "logos/goal9.png"]
+## License
+MIT
