@@ -12,7 +12,7 @@ This project is a backend service for generating event posters using AI and LLM-
 
 ### 1. Clone the Repository
 ```
-git clone <your-repo-url>
+git clone https://github.com/ShriGaneshPurohit/gen-visual-backend
 cd gen-visual-backend
 ```
 

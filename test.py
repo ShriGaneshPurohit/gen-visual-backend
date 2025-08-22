@@ -9,6 +9,7 @@ import os
 
 def main():
     prompt = "Generate a poster for the Annual Innovation Summit: Future Forward 2025 at Mumbai North Campus. Department of Information Technology. Event type: Annual Innovation Summit. About: A hands-on workshop exploring the latest trends in Artificial Intelligence, from cutting-edge research to real-world deployment. Speaker: Prof. Arjun Mehta. Designation: Lead Data Scientist, InnovateX Labs. Date: September 10, 2025. Time: 2:00 PM - 7:00 PM. Venue: Innovation Hall, 5th Floor, Skyline Building. Footer: School of Engineering Designed by AI."
+    # "Generate a poster for the Annual Innovation Summit: Future Forward 2025 at Mumbai North Campus. Department of Information Technology. Event type: Annual Innovation Summit. About: A hands-on workshop exploring the latest trends in Artificial Intelligence, from cutting-edge research to real-world deployment. Speaker: Prof. Arjun Mehta. Designation: Lead Data Scientist, InnovateX Labs. Date: September 10, 2025. Time: 2:00 PM - 7:00 PM. Venue: Innovation Hall, 5th Floor, Skyline Building. Footer: School of Engineering Designed by AI"
     json_output = process_prompt(prompt)
     print("[Middleware Output]")
     print(json.dumps(json_output, indent=2))

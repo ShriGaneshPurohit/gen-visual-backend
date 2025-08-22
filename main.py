@@ -18,12 +18,15 @@ async def full_process(
     poster_text_content: str = Form(...),
     custom_font_sizes: str = Form(...),
     face_image_paths: str = Form(...),
+    custom_colors: str = Form(None)
 ):
     import json
     text_content = json.loads(poster_text_content)
     font_sizes = json.loads(custom_font_sizes)
-    logo_list = logo_paths.split(",")
-    faces = face_image_paths.split(",")
+    # handle empty strings gracefully
+    logo_list = [p for p in (logo_paths or "").split(",") if p.strip()]
+    faces = [p for p in (face_image_paths or "").split(",") if p.strip()]
+    color_dict = json.loads(custom_colors) if custom_colors else None
 
     # Step 1: Generate poster
     temp_poster = "generated_poster.png"
@@ -38,7 +41,8 @@ async def full_process(
         font_sizes=font_sizes,
         venue_icon_path=venue_icon_file_path,
         calendar_icon_path=calendar_icon_file_path,
-        icon_scale=2.0
+        icon_scale=2.0,
+        custom_colors=color_dict
     )
 
     # Step 2: Populate slots
@@ -48,5 +52,9 @@ async def full_process(
         output_filename="final_poster.png",
         slots_json_path="slot_cache.json"
     )
+
+    # If populate_poster_slots failed or returned None, fall back to the poster generated earlier.
+    if not final_path:
+        final_path = poster_path
 
     return FileResponse(final_path, media_type="image/png")

@@ -130,6 +130,7 @@ def generate_poster(
     font_path: str,
     logo_paths: Optional[List[str]] = None,
     font_sizes: Optional[Dict[str, int]] = None,
+    custom_colors: Optional[Dict[str, str]] = None,
     logo_scale: float = 1.0,
     venue_icon_path: Optional[str] = None,
     calendar_icon_path: Optional[str] = None,
@@ -249,29 +250,124 @@ def generate_poster(
 
     # --- 6. Processing: Draw Text Content ---
     font_sizes = font_sizes or {}
+    custom_colors = custom_colors or {}
     DEFAULT_FONT_SIZE = 30
+
+    # Backend default font sizes: used when the user does not specify sizes.
+    default_font_sizes = {
+        'type_of_event': 55,
+        'campus_name': 45,
+        'department_name': 50,
+        'about_event': 35,
+        'venue': 25,
+        'date': 25,
+        'time': 25
+    }
+
+    # Merge user overrides onto defaults. If user passes an empty dict or None,
+    # the defaults are used. If user provides some keys, they override defaults.
+    if font_sizes:
+        merged = default_font_sizes.copy()
+        # only accept numeric overrides for safety
+        for k, v in font_sizes.items():
+            try:
+                merged[k] = int(v)
+            except Exception:
+                # ignore invalid values and keep default
+                pass
+        font_sizes = merged
+    else:
+        font_sizes = default_font_sizes.copy()
+
+    # Debug: log the active font sizes and colors
+    try:
+        print("DEBUG: active font_sizes=", font_sizes)
+        print("DEBUG: custom_colors=", custom_colors)
+    except Exception:
+        pass
+    # Debug: log merged font sizes and incoming colors
+    try:
+        print("[generate_poster] using font_sizes:", json.dumps(font_sizes))
+        print("[generate_poster] incoming custom_colors:", json.dumps(custom_colors))
+    except Exception:
+        pass
     full_width_center_keys = {'department_name', 'campus_name', 'type_of_event', 'about_event', 'footer'}
     horizontal_padding = 60
     poster_width = final_image_pil.width
+    poster_height = final_image_pil.height
+
+    # Fallback vertical positions for keys (fractions of poster height)
+    fallback_positions = {
+        'campus_name': 0.06,
+        'department_name': 0.12,
+        'type_of_event': 0.18,
+        'about_event': 0.38,
+        'speaker 1': 0.55,
+        'designation 1': 0.60,
+        'date': 0.72,
+        'time': 0.76,
+        'venue': 0.80,
+        'footer': 0.92
+    }
 
     for key, content in text_content.items():
-        if key not in mapped_fields:
-            continue
+        # If the key isn't in the template mapping, use a sensible fallback box
+        if key in mapped_fields and 'bbox' in mapped_fields[key]:
+            box = mapped_fields[key]['bbox']
+            min_x, max_x = int(min(p[0] for p in box)), int(max(p[0] for p in box))
+            min_y, max_y = int(min(p[1] for p in box)), int(max(p[1] for p in box))
+            box_w, box_h = max_x - min_x, max_y - min_y
+        else:
+            # Fallback: full-width area with centered alignment and vertical placement from fallback_positions
+            min_x = horizontal_padding
+            box_w = poster_width - 2 * horizontal_padding
+            frac = fallback_positions.get(key, 0.5)
+            # choose a reasonable box height per key
+            if key == 'about_event':
+                box_h = int(poster_height * 0.18)
+            elif key in ('type_of_event', 'department_name', 'campus_name'):
+                box_h = int(poster_height * 0.10)
+            elif key == 'footer':
+                box_h = int(poster_height * 0.08)
+            else:
+                box_h = int(poster_height * 0.06)
+            min_y = int(poster_height * frac) - box_h // 2
+            # ensure min_y is within image bounds
+            min_y = max(0, min(min_y, poster_height - box_h))
 
-        box = mapped_fields[key]['bbox']
-        min_x, max_x = int(min(p[0] for p in box)), int(max(p[0] for p in box))
-        min_y, max_y = int(min(p[1] for p in box)), int(max(p[1] for p in box))
-        box_w, box_h = max_x - min_x, max_y - min_y
+    # Use custom color if provided, else fallback to contrast color
+        color_str = custom_colors.get(key, '')
+        if color_str:
+            # Basic color name to RGB mapping (expand as needed)
+            color_map = {
+                'black': (0,0,0), 'white': (255,255,255), 'red': (255,0,0), 'green': (0,128,0), 'blue': (0,0,255),
+                'yellow': (255,255,0), 'orange': (255,165,0), 'purple': (128,0,128), 'pink': (255,192,203),
+                'gray': (128,128,128), 'grey': (128,128,128), 'brown': (165,42,42), 'cyan': (0,255,255), 'magenta': (255,0,255)
+            }
+            text_color = color_map.get(color_str.lower(), (0,0,0))
+        else:
+            # if mapped field existed we have max_x/max_y, else compute them from fallback box
+            if key in mapped_fields and 'bbox' in mapped_fields[key]:
+                bg_min_x, bg_min_y, bg_max_x, bg_max_y = min_x, min_y, max_x, max_y
+            else:
+                bg_min_x, bg_min_y = min_x, min_y
+                bg_max_x = min_x + box_w
+                bg_max_y = min_y + box_h
+            bg_crop = final_image_pil.crop((bg_min_x, bg_min_y, bg_max_x, bg_max_y))
+            avg_color = np.mean(np.array(bg_crop), axis=(0, 1))
+            text_color = get_contrasting_color(avg_color)
 
-        bg_crop = final_image_pil.crop((min_x, min_y, max_x, max_y))
-        avg_color = np.mean(np.array(bg_crop), axis=(0, 1))
-        text_color = get_contrasting_color(avg_color)
-        
         current_font_size = font_sizes.get(key, DEFAULT_FONT_SIZE)
         font = ImageFont.truetype(font_path, current_font_size)
-        
+
+        # Debug: log per-key chosen size and color
+        try:
+            print(f"[generate_poster] key={key} -> font_size={current_font_size}, color={text_color}")
+        except Exception:
+            pass
+
         wrap_width = poster_width - (2 * horizontal_padding) if key in full_width_center_keys else box_w
-        
+
         # Auto-fit logic for 'about_event'
         if key == 'about_event':
             wrapped_text = get_wrapped_text(content, font, wrap_width)
@@ -287,10 +383,16 @@ def generate_poster(
         wrapped_text = get_wrapped_text(content, font, wrap_width)
         text_bbox = draw.textbbox((0, 0), wrapped_text, font=font)
         text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
-        
+
         draw_x = (poster_width - text_width) / 2 if key in full_width_center_keys else min_x + (box_w - text_width) / 2
         draw_y = min_y + (box_h - text_height) / 2
-        
+
+        # Debug: log what will be drawn for this key
+        try:
+            print(f"DEBUG: draw key='{key}' size={current_font_size} color={text_color}")
+        except Exception:
+            pass
+
         draw.text((draw_x, draw_y), wrapped_text, font=font, fill=text_color, align='center')
 
     # --- 7. Output: Save the Final Image ---

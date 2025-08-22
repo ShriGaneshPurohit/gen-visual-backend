@@ -192,7 +192,13 @@ def populate_poster_slots(
     # Get or detect slots for the template.
     slots = _get_or_detect_slots(template_path, slots_json_path)
     if not slots:
-        return None
+        # No circular slots detected — preserve the input template (the generated poster)
+        # by copying it to the expected output path so styling changes remain visible.
+        template_img = cv2.imread(template_path)
+        if template_img is None:
+            return None
+        cv2.imwrite(final_output_path, template_img)
+        return final_output_path
     
     # Sort slots by position (top-to-bottom, left-to-right) for predictable ordering.
     sorted_slots = sorted(slots, key=lambda s: (s['y'], s['x']))
